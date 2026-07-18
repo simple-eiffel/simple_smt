@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>simple_smt - Quick API</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header><h1>Quick API</h1><p class="tagline">simple_smt in one screen</p></header>
+    <nav><ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="user-guide.html">User Guide</a></li>
+        <li><a href="api-reference.html">API Reference</a></li>
+        <li><a href="architecture.html">Architecture</a></li>
+        <li><a href="cookbook.html">Cookbook</a></li>
+    </ul></nav>
+    <main>
+        <section>
+            <h2>The whole workflow</h2>
+            <pre><code>local
+    smt: SIMPLE_SMT
+    x, y, zero, one: SMT_EXPR
+do
+    create smt.make
+    x := smt.int_const ("x"); y := smt.int_const ("y")
+    zero := smt.int_value (0); one := smt.int_value (1)
+
+    -- PROVE: valid for all values?
+    smt.prove (x.at_least (zero).entails (x.plus (one).greater (zero)))   -- True
+    smt.prove (x.less (y).entails (y.greater (x)))                        -- True
+
+    -- REFUTE: counter-model if not valid
+    smt.refutation (x.greater (zero))                                     -- "x -> 0"
+
+    -- SOLVE: assert constraints, check, read model
+    smt.assume (x.greater (smt.int_value (5)))
+    smt.assume (x.less (smt.int_value (8)))
+    if smt.is_satisfiable then print (smt.model_value (x)) end            -- 6 or 7
+end</code></pre>
+        </section>
+
+        <section>
+            <h2>Building expressions (SMT_EXPR, all fluent)</h2>
+            <table>
+                <tr><th>Category</th><th>Features</th></tr>
+                <tr><td>Arithmetic</td><td><code>plus</code> <code>minus</code> <code>times</code> <code>modulo</code> <code>divided_by</code> <code>opposite</code></td></tr>
+                <tr><td>Comparison</td><td><code>less</code> <code>at_most</code> <code>greater</code> <code>at_least</code> <code>is_equal_to</code></td></tr>
+                <tr><td>Boolean</td><td><code>conjoined</code> (and) <code>disjoined</code> (or) <code>negated</code> (not) <code>entails</code> (implies) <code>xored</code> <code>iff</code></td></tr>
+                <tr><td>Conditional</td><td><code>when_true_else (then, else)</code> &mdash; or facade <code>smt.ite (cond, a, b)</code></td></tr>
+            </table>
+            <div class="note"><code>entails</code> and <code>decide</code> are named to avoid the Eiffel keywords <code>implies</code> and <code>check</code>.</div>
+        </section>
+
+        <section>
+            <h2>Facade builders (SIMPLE_SMT)</h2>
+            <pre><code>smt.int_const ("n")        smt.int_value (42)
+smt.real_const ("p")       smt.real_value ("1/2")
+smt.bool_const ("flag")    smt.true_expr / smt.false_expr
+smt.ite (cond, a, b)       smt.maximum (a, b)     smt.absolute (x)
+smt.all_distinct (&lt;&lt;a, b, c&gt;&gt;)   -- pairwise not-equal</code></pre>
+        </section>
+
+        <section>
+            <h2>Deciding &amp; proving</h2>
+            <table>
+                <tr><th>Call</th><th>Meaning</th></tr>
+                <tr><td><code>assume (e)</code></td><td>add formula to the assertion set (command)</td></tr>
+                <tr><td><code>is_satisfiable</code> / <code>is_unsatisfiable</code></td><td>decide the current assertions (lazy, cached)</td></tr>
+                <tr><td><code>prove (c): BOOLEAN</code></td><td>is <code>c</code> valid for all values? (asserts &not;c, checks unsat; never mutates)</td></tr>
+                <tr><td><code>refutation (c): STRING</code></td><td>counter-model if <code>c</code> is not valid, else ""</td></tr>
+                <tr><td><code>model_value (e): STRING</code></td><td>value of <code>e</code> in the current model</td></tr>
+                <tr><td><code>push</code> / <code>pop</code> / <code>reset</code></td><td>scoped assertion stack</td></tr>
+                <tr><td><code>to_smtlib: STRING</code></td><td>SMT-LIB2 text of the assertions</td></tr>
+            </table>
+        </section>
+
+        <section>
+            <h2>The prove pattern</h2>
+            <p>To prove a conjecture valid, assert its negation and check for <code>unsat</code>. That is what
+               <code>prove</code> does; understanding it explains everything else:</p>
+            <pre><code>-- "prove P" succeeds iff (not P) is unsatisfiable, i.e. no counterexample exists.
+-- "refutation P" returns that counterexample when one exists.</code></pre>
+        </section>
+
+        <footer><p>&copy; 2026 Simple Eiffel Contributors. MIT License.</p></footer>
+    </main>
+</body>
+</html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>simple_smt - User Guide</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header><h1>User Guide</h1><p class="tagline">From a formula to a proof</p></header>
+    <nav><ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="quick.html">QUICK API</a></li>
+        <li><a href="api-reference.html">API Reference</a></li>
+        <li><a href="architecture.html">Architecture</a></li>
+        <li><a href="cookbook.html">Cookbook</a></li>
+    </ul></nav>
+    <main>
+        <section>
+            <h2>1. What an SMT solver does</h2>
+            <p>An SMT solver decides whether a logical formula, drawn from decidable theories
+               (linear integer/real arithmetic, booleans, and more), is <em>satisfiable</em> &mdash;
+               whether some assignment of values makes it true. From that one primitive you get:
+               <strong>solving</strong> (find an assignment), <strong>proving</strong> (show a
+               conjecture is true for <em>all</em> values by proving its negation unsatisfiable),
+               and <strong>refuting</strong> (produce a concrete counterexample). simple_smt exposes
+               all three over Z3.</p>
+        </section>
+
+        <section>
+            <h2>2. Installation</h2>
+            <p>Requires the Simple Eiffel ecosystem (<code>SIMPLE_EIFFEL</code>) and EiffelStudio 25.02.
+               Z3 5.0.0 is vendored in the repository.</p>
+            <pre><code>&lt;library name="simple_smt" location="$SIMPLE_EIFFEL/simple_smt/simple_smt.ecf"/&gt;</code></pre>
+            <p><code>libz3.dll</code> must sit beside the executable at runtime; the build copies it into
+               <code>bin/</code>. On a fresh clone the header (<code>Clib/z3.h</code>) and link library
+               (<code>lib/libz3.lib</code>) are already present.</p>
+            <pre><code>/d/prod/ec.sh test -config simple_smt.ecf -target simple_smt_tests   # 56/56
+./bin/test_app.exe</code></pre>
+        </section>
+
+        <section>
+            <h2>3. Building formulas</h2>
+            <p>Start from a facade, create typed constants and literals, and combine them with fluent
+               operators. Every operator returns a new <code>SMT_EXPR</code>, so formulas read like the
+               mathematics they denote.</p>
+            <pre><code>create smt.make
+k := smt.int_const ("k")        -- an integer variable
+n := smt.int_const ("n")
+-- 1 &lt;= k and k &lt;= n
+bounds := smt.int_value (1).at_most (k).conjoined (k.at_most (n))</code></pre>
+            <p>Mixing sorts is your responsibility: compare integers with integer literals
+               (<code>int_value</code>), reals with real literals (<code>real_value "1/2"</code>).</p>
+        </section>
+
+        <section>
+            <h2>4. Deciding satisfiability</h2>
+            <pre><code>smt.assume (bounds)
+smt.assume (k.greater (smt.int_value (10)))
+if smt.is_satisfiable then
+    print (smt.model_value (k))     -- a witness value for k
+else
+    print ("no solution")
+end</code></pre>
+            <p>Decisions are <strong>lazy and memoized</strong>: <code>is_satisfiable</code> runs Z3 once
+               for a given assertion set and caches the outcome; asserting more, or push/pop/reset,
+               invalidates the cache. Querying twice, or querying then reading the model, does not
+               re-run the solver.</p>
+        </section>
+
+        <section>
+            <h2>5. Proving and refuting</h2>
+            <p><code>prove (c)</code> answers "is <code>c</code> valid for <em>every</em> assignment?" It
+               asserts <code>not c</code> in a scratch scope and checks for <code>unsat</code>; a
+               successful proof means no counterexample exists. It never disturbs your assertion set
+               (postcondition <code>assertions_unchanged</code>).</p>
+            <pre><code>-- Prove a contract fragment: 1 &lt;= k and k &lt;= n  implies  k &lt;= n
+smt.prove (bounds.entails (k.at_most (n)))            -- True
+
+-- When a claim is false, get the witness:
+smt.refutation (k.greater (n))                        -- e.g. "k -> 0  n -> 0"</code></pre>
+        </section>
+
+        <section>
+            <h2>6. Detecting vacuous specifications</h2>
+            <p>The most valuable pattern: show a weak specification is under-constrained by finding a
+               dumb witness that satisfies it, then show the strengthened spec rules that witness out.</p>
+            <pre><code>-- Weak: is_sorted alone. A non-permutation like (0,0,0) satisfies it -> SAT (bug!)
+smt.assume (b1.at_most (b2)); smt.assume (b2.at_most (b3))
+smt.assume (is_permutation (b1, b2, b3).negated)
+smt.is_satisfiable            -- True: the weak spec admits (0,0,0)
+
+-- Strong: sorted AND permutation -> only (1,2,3) survives -> the dumb witness is gone.</code></pre>
+            <p>This is exactly the check an AutoSpec-style tool performs to keep specifications
+               non-vacuous.</p>
+        </section>
+
+        <section>
+            <h2>7. Scoping with push/pop</h2>
+            <pre><code>smt.assume (k.greater (smt.int_value (0)))
+smt.push
+    smt.assume (k.less (smt.int_value (0)))     -- now contradictory
+    smt.is_unsatisfiable                        -- True
+smt.pop                                          -- back to just k &gt; 0
+smt.is_satisfiable                               -- True again</code></pre>
+        </section>
+
+        <section>
+            <h2>8. What Z3 can and cannot decide</h2>
+            <ul>
+                <li><strong>Reliable:</strong> linear integer/real arithmetic, booleans, arrays of the
+                    supported sorts, and the mod/div/ite/distinct operators. These are decidable and fast.</li>
+                <li><strong>Sometimes:</strong> nonlinear arithmetic. simple_smt tests
+                    <code>x*x = 2</code> (unsat over integers, sat over reals) which Z3 decides; deeper
+                    Diophantine problems (Fermat cubic, Pell) may return <em>unknown</em> or not terminate.</li>
+                <li><strong>Out of scope (v1):</strong> quantifiers, strings, bitvectors, optimization.
+                    The binding is structured so each is one external plus one facade feature to add.</li>
+            </ul>
+            <p>Always treat an <code>is_unknown</code> result honestly &mdash; it means Z3 could not
+               decide, not that the formula is false.</p>
+        </section>
+
+        <footer><p>&copy; 2026 Simple Eiffel Contributors. MIT License.</p></footer>
+    </main>
+</body>
+</html>

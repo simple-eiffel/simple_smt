@@ -1,5 +1,6 @@
 # simple_smt
 
+[Documentation](https://simple-eiffel.github.io/simple_smt/) •
 [GitHub](https://github.com/simple-eiffel/simple_smt) •
 [Issues](https://github.com/simple-eiffel/simple_smt/issues)
 
@@ -15,8 +16,11 @@ Part of the [Simple Eiffel](https://github.com/simple-eiffel) ecosystem.
 
 ## Status
 
-✅ v1.0.0 — 17 tests passing (100%). Z3 5.0.0 (MIT) vendored; inline-C binding over `z3.h`.
-Cross-platform by construction (Windows tested).
+✅ v1.0.0 — **56 tests passing (100%)**, including 35 real-world scenarios mined from actual
+simple_* contracts and a reproduction of the MIT AutoProof ACCOUNT tutorial. Z3 5.0.0 (MIT)
+vendored; inline-C binding over `z3.h`. Cross-platform by construction (Windows tested).
+
+For complete documentation, see [our docs site](https://simple-eiffel.github.io/simple_smt/).
 
 ## Quick Start
 

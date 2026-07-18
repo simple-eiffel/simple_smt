@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>simple_smt - Architecture</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header><h1>Architecture</h1><p class="tagline">A thin, faithful Eiffel layer over Z3</p></header>
+    <nav><ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="quick.html">QUICK API</a></li>
+        <li><a href="user-guide.html">User Guide</a></li>
+        <li><a href="api-reference.html">API Reference</a></li>
+        <li><a href="cookbook.html">Cookbook</a></li>
+    </ul></nav>
+    <main>
+        <section>
+            <h2>Layers</h2>
+            <pre><code>SIMPLE_SMT     facade: context + solver together; prove / refutation / is_satisfiable
+    |
+    +-- SMT_CONTEXT   Z3 config + context; sort cache; expression factory;
+    |                 ALL inline-C externals over &lt;z3.h&gt;
+    +-- SMT_EXPR      wraps a Z3_ast + its context; fluent operators (return new SMT_EXPR)
+    +-- SMT_SOLVER    wraps Z3_solver (ref-counted); assert / lazy decide / push / pop / model
+    +-- SMT_MODEL     wraps Z3_model (ref-counted); value_of
+
+               Z3 5.0.0 (C library, MIT)  &lt;-- linked via libz3.lib, &lt;z3.h&gt;</code></pre>
+        </section>
+
+        <section>
+            <h2>Design decisions</h2>
+
+            <h3>Z3 is the trusted oracle; simple_smt only translates</h3>
+            <p>The soundness of every answer rests on Z3, not on simple_smt. simple_smt's job is a
+               faithful 1:1 mapping from the Eiffel expression tree to Z3 AST nodes. That claim is
+               grounded empirically by a test suite that proves known theorems (their negations are
+               unsat) and refutes known non-theorems (sat with an extracted counter-model) &mdash; the
+               same differential-grounding discipline used elsewhere in the ecosystem.</p>
+
+            <h3>Inline C, no separate .c files</h3>
+            <p>Every Z3 call is an inline-C external over <code>z3.h</code> in SMT_CONTEXT, following the
+               ecosystem's inline-C pattern. Opaque Z3 handles (context, sort, ast, solver, model) are
+               held as <code>POINTER</code>. n-ary Z3 operators (add, and, distinct) are bound as
+               2-element C arrays; wider arities fold in Eiffel (e.g. <code>all_distinct</code> is
+               pairwise).</p>
+
+            <h3>Context-lifetime AST, ref-counted solver/model</h3>
+            <p>Using <code>Z3_mk_context</code> ties AST-node lifetime to the context, so expressions need
+               no per-node reference counting &mdash; a large simplification. Only solvers and models are
+               <code>inc_ref</code>/<code>dec_ref</code> managed.</p>
+
+            <h3>Lazy memoized decisions (CQS)</h3>
+            <p>Deciding satisfiability is expensive and deterministic for a fixed assertion set, so
+               <code>decide</code> is a lazy memoized query: it runs Z3 only when the cached result is
+               stale (an <code>is_decided</code> flag invalidated by assert/push/pop/reset) and caches
+               otherwise. This keeps the ergonomic <code>if smt.is_satisfiable</code> idiom while
+               satisfying command-query separation via the whitelisted lazy-initialization pattern, and
+               it eliminates redundant solver calls (query-twice, or query-then-model, reuse the cache).</p>
+
+            <h3>The prove/refute duality</h3>
+            <p><code>prove(P)</code> and <code>refutation(P)</code> are two readings of one solver call:
+               assert <code>not P</code> in a scratch scope; if it is unsatisfiable, P is valid (prove
+               returns True); if it is satisfiable, the model is a counterexample (refutation returns
+               it). Both restore the assertion set exactly (<code>assertions_unchanged</code>).</p>
+        </section>
+
+        <section>
+            <h2>Type mapping</h2>
+            <table>
+                <tr><th>Eiffel</th><th>Z3</th></tr>
+                <tr><td><code>SMT_EXPR.ast: POINTER</code></td><td><code>Z3_ast</code></td></tr>
+                <tr><td><code>SMT_CONTEXT.context: POINTER</code></td><td><code>Z3_context</code></td></tr>
+                <tr><td><code>SMT_SOLVER.decide: INTEGER</code></td><td><code>Z3_lbool</code> (1 / -1 / 0)</td></tr>
+                <tr><td><code>int_value (i)</code></td><td><code>Z3_mk_numeral</code> over int sort</td></tr>
+                <tr><td><code>a.plus (b)</code></td><td><code>Z3_mk_add</code> (2-element array)</td></tr>
+                <tr><td><code>a.entails (b)</code></td><td><code>Z3_mk_implies</code></td></tr>
+                <tr><td><code>smt.ite (c, a, b)</code></td><td><code>Z3_mk_ite</code></td></tr>
+            </table>
+        </section>
+
+        <section>
+            <h2>Where it sits</h2>
+            <p>simple_smt is Phase 0 of a correctness-tooling arc: the mechanical "dispose" beneath a
+               propose/dispose loop. Contract verification discharges VCs through it; non-vacuity checking
+               detects under-constrained specs through it; specification synthesis checks each refinement
+               step through it. Everything above is orchestration; the trusted decision procedure is here.</p>
+        </section>
+
+        <section>
+            <h2>Extension points</h2>
+            <ul>
+                <li><strong>New operator:</strong> one inline-C external in SMT_CONTEXT + one fluent feature in SMT_EXPR (the mod/div/ite/xor/iff/distinct additions followed exactly this).</li>
+                <li><strong>New sort</strong> (bitvector, string): a <code>*_sort</code> cache + constant/literal builders.</li>
+                <li><strong>Quantifiers, optimization, unsat cores:</strong> additional Z3 API surface, same binding pattern.</li>
+            </ul>
+        </section>
+
+        <footer><p>&copy; 2026 Simple Eiffel Contributors. MIT License.</p></footer>
+    </main>
+</body>
+</html>

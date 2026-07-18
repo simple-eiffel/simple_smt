@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>simple_smt - Cookbook</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header><h1>Cookbook</h1><p class="tagline">Recipes drawn from the 56-test suite</p></header>
+    <nav><ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="quick.html">QUICK API</a></li>
+        <li><a href="user-guide.html">User Guide</a></li>
+        <li><a href="api-reference.html">API Reference</a></li>
+        <li><a href="architecture.html">Architecture</a></li>
+    </ul></nav>
+    <main>
+        <section>
+            <h2>Discharge a contract fragment</h2>
+            <pre><code>-- 1 &lt;= k and k &lt;= n  implies  k &lt;= n   (a real precondition-in-bounds VC)
+one := smt.int_value (1)
+smt.prove (one.at_most (k).conjoined (k.at_most (n)).entails (k.at_most (n)))   -- True</code></pre>
+        </section>
+
+        <section>
+            <h2>Reproduce the AutoProof ACCOUNT bug</h2>
+            <p>Without a <code>amount &lt;= balance</code> precondition, <code>withdraw</code> can break the
+               invariant <code>balance &gt;= 0</code> &mdash; the exact failure the MIT AutoProof demo flags.</p>
+            <pre><code>bal := smt.int_const ("balance"); amt := smt.int_const ("amount"); zero := smt.int_value (0)
+
+-- VC: (balance&gt;=0 and amount&gt;=0 and balance' = balance-amount) => balance'&gt;=0
+buggy := bal.at_least (zero).conjoined (amt.at_least (zero)).entails (bal.minus (amt).at_least (zero))
+smt.prove (buggy)             -- False  (not valid)
+smt.refutation (buggy)        -- e.g. "balance -> 0  amount -> 1"  (the counterexample)
+
+-- The fix: add the missing precondition amount &lt;= balance
+fixed := bal.at_least (zero).conjoined (amt.at_least (zero)).conjoined (amt.at_most (bal))
+             .entails (bal.minus (amt).at_least (zero))
+smt.prove (fixed)             -- True</code></pre>
+        </section>
+
+        <section>
+            <h2>Catch an under-constrained (vacuous) specification</h2>
+            <pre><code>-- A stub base64 encoder that always returns 0 satisfies "result_count &gt;= 0" for 5 bytes:
+rc := smt.int_const ("rc")
+expected := smt.int_value (5).plus (smt.int_value (2)).divided_by (smt.int_value (3)).times (smt.int_value (4))
+smt.assume (rc.is_equal_to (smt.int_value (0)))
+smt.assume (rc.at_least (smt.int_value (0)))          -- the weak postcondition
+smt.assume (rc.is_equal_to (expected).negated)
+smt.is_satisfiable            -- True  =&gt; the weak spec admits a wrong answer (rc=0)
+
+-- The real postcondition pins rc = 8 exactly; the stub no longer satisfies it.</code></pre>
+        </section>
+
+        <section>
+            <h2>Modular arithmetic (checksums, clocks)</h2>
+            <pre><code>-- adler32 running sums stay in [0, 65520] under mod 65521:
+a2 := a.plus (byte).modulo (smt.int_value (65521))
+smt.prove (a.at_least (zero).conjoined (byte.at_most (smt.int_value (255)))
+             .entails (a2.at_least (zero).conjoined (a2.at_most (smt.int_value (65520)))))   -- True
+
+-- Adding a full week never changes the day-of-week:
+smt.prove (d.plus (smt.int_value (7)).modulo (smt.int_value (7)).is_equal_to (d.modulo (smt.int_value (7))))  -- True</code></pre>
+        </section>
+
+        <section>
+            <h2>ite for max / abs</h2>
+            <pre><code>m := smt.maximum (a, b)   -- ite(a&gt;=b, a, b)
+smt.prove (m.at_least (a).conjoined (m.at_least (b)).conjoined (m.is_equal_to (a).disjoined (m.is_equal_to (b))))  -- True
+
+ax := smt.absolute (x)    -- ite(x&gt;=0, x, -x)
+smt.prove (ax.at_least (zero).conjoined (ax.is_equal_to (x).disjoined (ax.is_equal_to (x.opposite))))            -- True</code></pre>
+        </section>
+
+        <section>
+            <h2>distinct: pigeonhole and graph coloring</h2>
+            <pre><code>-- 5 pairwise-distinct pigeons cannot fit in 4 holes:
+smt.assume (smt.all_distinct (&lt;&lt;p1, p2, p3, p4, p5&gt;&gt;))   -- each constrained to 1..4
+smt.is_unsatisfiable          -- True (pigeonhole)
+
+-- K3 (triangle) is 3-colorable, K4 is not:
+smt.assume (smt.all_distinct (&lt;&lt;c1, c2, c3&gt;&gt;))            -- each 1..3  -> is_satisfiable
+smt.assume (smt.all_distinct (&lt;&lt;c1, c2, c3, c4&gt;&gt;))        -- each 1..3  -> is_unsatisfiable</code></pre>
+        </section>
+
+        <section>
+            <h2>Solve and read a model</h2>
+            <pre><code>smt.assume (x.greater (smt.int_value (5)))
+smt.assume (x.less (smt.int_value (8)))
+if smt.is_satisfiable then print (smt.model_value (x)) end   -- "6" or "7"</code></pre>
+        </section>
+
+        <section>
+            <h2>Honest limits</h2>
+            <table>
+                <tr><th>Problem</th><th>Behavior</th></tr>
+                <tr><td><code>x*x = 2</code> over integers</td><td>Z3 decides <strong>unsat</strong></td></tr>
+                <tr><td><code>x*x = 2</code> over reals</td><td>Z3 decides <strong>sat</strong></td></tr>
+                <tr><td>Fermat cubic, Pell equations</td><td>may return <code>is_unknown</code> or not terminate &mdash; treat unknown honestly</td></tr>
+                <tr><td>quantifiers, strings, bitvectors</td><td>not bound in v1 (extension points)</td></tr>
+            </table>
+        </section>
+
+        <footer><p>&copy; 2026 Simple Eiffel Contributors. MIT License.</p></footer>
+    </main>
+</body>
+</html>

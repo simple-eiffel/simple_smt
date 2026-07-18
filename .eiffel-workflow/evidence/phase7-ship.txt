@@ -1,0 +1,20 @@
+# Phase 7 Ship Evidence
+# Project: D:/prod/simple_smt
+# Date: 2026-07-18
+
+Documentation site: COMPLETE
+  index.html, quick.html, user-guide.html, api-reference.html,
+  architecture.html, cookbook.html, css/style.css, images/logo.svg, .nojekyll
+README.md: SHORT (gateway to docs site)
+CHANGELOG.md: COMPLETE  LICENSE: MIT (bundled Z3 MIT)
+
+Compilation: PASS (EiffelStudio 25.02, finalized -keep), zero warnings
+Tests: PASS (56/56, reports/test_run.log) after lazy-decide CQS refactor
+CQS audit: PASS (0 violations; evidence phase4-cqs-audit.txt)
+Ecosystem: only ISE base beyond the vendored Z3 C library; scoop; void_safety=all
+
+Highlights: proves real contract-fragment VCs; detects vacuous specs; reproduces
+the AutoProof ACCOUNT tutorial failures + fixes; mod/div/ite/distinct operators.
+
+Human approved: YES (user: "do as seems right to you", "docs once stabilized")
+Status: READY_FOR_PRODUCTION

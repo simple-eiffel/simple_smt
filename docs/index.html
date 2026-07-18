@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>simple_smt - the Z3 SMT solver, bound natively for Eiffel</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <div class="logo-container"><img src="images/logo.svg" alt="simple_smt logo" class="logo"></div>
+        <h1>simple_smt</h1>
+        <p class="tagline">The Z3 SMT solver, bound natively for Eiffel &mdash; build formulas, decide satisfiability, extract models, prove theorems</p>
+        <div class="badges">
+            <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT License">
+            <img src="https://img.shields.io/badge/Eiffel-25.02-purple.svg" alt="Eiffel 25.02">
+            <img src="https://img.shields.io/badge/Z3-5.0.0-informational.svg" alt="Z3 5.0.0">
+            <img src="https://img.shields.io/badge/tests-56%2F56-green.svg" alt="56 tests">
+        </div>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="#overview">Overview</a></li>
+            <li><a href="quick.html">QUICK API</a></li>
+            <li><a href="user-guide.html">User Guide</a></li>
+            <li><a href="api-reference.html">API Reference</a></li>
+            <li><a href="architecture.html">Architecture</a></li>
+            <li><a href="cookbook.html">Cookbook</a></li>
+            <li><a href="https://github.com/simple-eiffel/simple_smt">GitHub</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <section id="overview">
+            <h2>Overview</h2>
+            <p>
+                <strong>simple_smt</strong> is a native Eiffel binding to
+                <a href="https://github.com/Z3Prover/z3">Z3</a>, Microsoft Research's
+                Satisfiability-Modulo-Theories solver. Build logical formulas over integers,
+                reals, and booleans with a fluent API; decide satisfiability; extract satisfying
+                models; and &mdash; the headline &mdash; <strong>prove</strong> that a formula holds
+                for all values, or get a concrete counter-model when it does not.
+            </p>
+            <p>
+                It is a 100%-Eiffel facade over Z3's C API via inline-C externals; Z3 is the only
+                external dependency, bundled (MIT) and linked directly. No Boogie, no external
+                process, no proprietary component.
+            </p>
+            <p>Part of the <a href="https://github.com/simple-eiffel">Simple Eiffel</a> ecosystem.</p>
+        </section>
+
+        <section id="proof">
+            <h2>It proves real things</h2>
+            <pre><code>create smt.make
+x := smt.int_const ("x"); zero := smt.int_value (0); one := smt.int_value (1)
+
+-- Prove a theorem (valid for every x):  x >= 0  implies  x + 1 > 0
+smt.prove (x.at_least (zero).entails (x.plus (one).greater (zero)))   -- True
+
+-- Refute a non-theorem, with a witness:
+smt.refutation (x.greater (zero))                                     -- "x -> 0"
+
+-- Solve a constraint and read the model:
+smt.assume (x.greater (smt.int_value (5)))
+smt.assume (x.less (smt.int_value (8)))
+smt.model_value (x)                                                   -- "6"</code></pre>
+        </section>
+
+        <section id="verified">
+            <h2>Verified, not a toy</h2>
+            <p>The 56-test suite includes 35 real-world scenarios mined from actual simple_* contracts
+               (fraction ordering, decimal cent-splitting, adler32 mod-65521 bounds, cache capacity,
+               base64/datetime arithmetic, pigeonhole and graph coloring), non-vacuity detection, and a
+               reproduction of the <a href="https://www.eiffel.org/blog/Finnian%20Reilly/2026/05/finding-billion-user-project-eiffel-how-dbc-catches-security-flaws-rust-misses">AutoProof</a>
+               ACCOUNT tutorial: simple_smt independently refutes the same three verification conditions
+               the MIT verifier flags, then proves the fixed versions.</p>
+        </section>
+
+        <section id="features">
+            <h2>Features</h2>
+            <ul>
+                <li>Sorts: integers, reals, booleans</li>
+                <li>Operators: <code>+ - *</code>, <code>mod</code>, <code>div</code>, unary minus; <code>&lt; &lt;= &gt; &gt;= =</code>; <code>and or not implies xor iff ite</code>; pairwise <code>distinct</code></li>
+                <li><code>prove</code> (validity via negation-unsat, non-mutating), <code>refutation</code> (counter-model), <code>is_satisfiable</code>, <code>model_value</code></li>
+                <li>Convenience: <code>maximum</code>, <code>absolute</code>, <code>all_distinct</code></li>
+                <li><code>push</code>/<code>pop</code>/<code>reset</code>, SMT-LIB2 emission</li>
+                <li>Lazy memoized decisions (no redundant solver calls), full contracts, void-safe, SCOOP-compatible</li>
+            </ul>
+        </section>
+
+        <section id="why">
+            <h2>Why it exists</h2>
+            <p>simple_smt is the mechanical core &mdash; the trusted "dispose" in a propose/dispose loop &mdash;
+               under contract verification, non-vacuity checking, and specification synthesis. Z3 is the
+               trusted oracle; simple_smt's own claim is only faithful translation of the Eiffel expression
+               tree into Z3's AST, grounded by a suite that proves known theorems and refutes known
+               non-theorems.</p>
+        </section>
+
+        <footer>
+            <p>&copy; 2026 Simple Eiffel Contributors. MIT License. Bundled Z3 is MIT.</p>
+            <p><a href="https://github.com/simple-eiffel/simple_smt">GitHub Repository</a></p>
+        </footer>
+    </main>
+</body>
+</html>

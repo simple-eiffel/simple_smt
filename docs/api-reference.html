@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>simple_smt - API Reference</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header><h1>API Reference</h1><p class="tagline">simple_smt 1.0.0 &mdash; public classes and features</p></header>
+    <nav><ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="quick.html">QUICK API</a></li>
+        <li><a href="user-guide.html">User Guide</a></li>
+        <li><a href="architecture.html">Architecture</a></li>
+        <li><a href="cookbook.html">Cookbook</a></li>
+    </ul></nav>
+    <main>
+        <section>
+            <h2>SIMPLE_SMT (facade)</h2>
+            <p>Create with <code>make</code>. Owns a context and one solver.</p>
+
+            <h3>Builders</h3>
+            <div class="feature-sig">int_const / real_const / bool_const (a_name: STRING): SMT_EXPR</div>
+            <div class="feature-sig">int_value (a_value: INTEGER): SMT_EXPR &nbsp;|&nbsp; real_value (a_literal: STRING): SMT_EXPR</div>
+            <div class="feature-sig">true_expr: SMT_EXPR &nbsp;|&nbsp; false_expr: SMT_EXPR</div>
+            <div class="feature-sig">ite (a_cond, a_then, a_else: SMT_EXPR): SMT_EXPR</div>
+            <div class="feature-sig">maximum (a, b: SMT_EXPR): SMT_EXPR &nbsp;|&nbsp; absolute (a: SMT_EXPR): SMT_EXPR</div>
+            <div class="feature-sig">all_distinct (a_terms: ARRAY [SMT_EXPR]): SMT_EXPR</div>
+            <p>Pairwise "every term differs" &mdash; equivalent to Z3 distinct for a finite set. <em>require</em> at least two terms, all in this context.</p>
+
+            <h3>Assertions &amp; decision</h3>
+            <div class="feature-sig">assume (a_formula: SMT_EXPR)</div>
+            <p>Add a boolean formula to the assertion set. <em>require</em> same context.</p>
+            <div class="feature-sig">is_satisfiable: BOOLEAN &nbsp;|&nbsp; is_unsatisfiable: BOOLEAN &nbsp;|&nbsp; is_unknown: BOOLEAN</div>
+            <p>Decide the current assertion set (lazy, memoized).</p>
+            <div class="feature-sig">model_value (a_expr: SMT_EXPR): STRING</div>
+            <p>Value of <code>a_expr</code> in the current satisfying model; "" when none.</p>
+
+            <h3>Proving</h3>
+            <div class="feature-sig">prove (a_conjecture: SMT_EXPR): BOOLEAN</div>
+            <p>Is the conjecture valid for all values? Asserts its negation in a scratch scope and checks
+               for unsat. <em>ensure</em> <code>assertions_unchanged</code>.</p>
+            <div class="feature-sig">refutation (a_conjecture: SMT_EXPR): STRING</div>
+            <p>A textual counter-model where the conjecture is false, or "" if it is valid. <em>ensure</em>
+               <code>assertions_unchanged</code>.</p>
+
+            <h3>Scoping &amp; output</h3>
+            <div class="feature-sig">push &nbsp;|&nbsp; pop &nbsp;|&nbsp; reset &nbsp;|&nbsp; to_smtlib: STRING</div>
+            <div class="feature-sig">context: SMT_CONTEXT &nbsp;|&nbsp; solver: SMT_SOLVER</div>
+        </section>
+
+        <section>
+            <h2>SMT_EXPR</h2>
+            <p>A Z3 AST node plus its owning context. Every operator returns a fresh SMT_EXPR; operands
+               must share the context (checked by precondition).</p>
+            <div class="feature-sig">plus / minus / times / modulo / divided_by (a_other): SMT_EXPR &nbsp;|&nbsp; opposite: SMT_EXPR</div>
+            <div class="feature-sig">less / at_most / greater / at_least / is_equal_to (a_other): SMT_EXPR</div>
+            <div class="feature-sig">conjoined / disjoined / entails / xored / iff (a_other): SMT_EXPR &nbsp;|&nbsp; negated: SMT_EXPR</div>
+            <div class="feature-sig">when_true_else (a_then, a_else): SMT_EXPR &nbsp;|&nbsp; to_string: STRING</div>
+        </section>
+
+        <section>
+            <h2>SMT_SOLVER</h2>
+            <div class="feature-sig">assert_formula (a_formula: SMT_EXPR) &nbsp;|&nbsp; assertion_count: INTEGER</div>
+            <div class="feature-sig">decide: INTEGER &nbsp;(Sat=1, Unsat=-1, Undecided=0)</div>
+            <p>Lazy memoized query: runs Z3 only when the cache is stale (<code>is_decided</code> false,
+               invalidated by assert/push/pop/reset), then caches. <em>ensure</em> <code>decided</code>.</p>
+            <div class="feature-sig">is_satisfiable / is_unsatisfiable: BOOLEAN &nbsp;|&nbsp; is_decided: BOOLEAN &nbsp;|&nbsp; last_check: INTEGER</div>
+            <div class="feature-sig">model: detachable SMT_MODEL &nbsp;(require is_decided and last_check = Sat)</div>
+            <div class="feature-sig">push &nbsp;|&nbsp; pop (require has_open_scope) &nbsp;|&nbsp; reset &nbsp;|&nbsp; to_smtlib: STRING</div>
+        </section>
+
+        <section>
+            <h2>SMT_MODEL</h2>
+            <div class="feature-sig">value_of (a_expr: SMT_EXPR): STRING</div>
+            <p>Value of an expression in this model as text (numeral or "true"/"false"); "" if it cannot
+               be evaluated.</p>
+            <div class="feature-sig">to_string_representation: STRING &nbsp;|&nbsp; dispose_model</div>
+        </section>
+
+        <section>
+            <h2>SMT_CONTEXT</h2>
+            <p>Owns the Z3 configuration and context; the factory for sorts, expressions, and solvers,
+               and the home of all inline-C externals over <code>z3.h</code>. Sorts
+               (<code>int_sort</code>/<code>bool_sort</code>/<code>real_sort</code>) are lazily cached.
+               AST nodes live for the context's lifetime (no per-AST ref counting); solvers and models
+               are ref-counted. Call <code>dispose_context</code> to release.</p>
+        </section>
+
+        <section>
+            <h2>Naming notes</h2>
+            <p><code>entails</code> (implication) and <code>decide</code> (the check) avoid the Eiffel
+               reserved keywords <code>implies</code> and <code>check</code>. Boolean connectives are
+               <code>conjoined</code>/<code>disjoined</code>/<code>negated</code> for the same reason
+               (<code>and</code>/<code>or</code>/<code>not</code> are keywords).</p>
+        </section>
+
+        <footer><p>&copy; 2026 Simple Eiffel Contributors. MIT License.</p></footer>
+    </main>
+</body>
+</html>
