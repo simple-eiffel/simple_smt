@@ -1,0 +1,24 @@
+# Eiffel build artifacts
+EIFGENs/
+Documentation/
+
+# Compiled outputs
+bin/
+*.exe
+*.melted
+*.o
+*.obj
+
+# Backup / IDE / OS
+*.swp
+*.bak
+*~
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.epr
+*.log
+
+# NOTE: the vendored Z3 dependency IS committed:
+#   Clib/*.h, lib/libz3.lib, lib/libz3.dll
