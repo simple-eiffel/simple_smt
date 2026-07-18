@@ -95,6 +95,55 @@ feature -- Expression builders
 			Result := context.false_expr
 		end
 
+feature -- Compound builders
+
+	ite (a_cond, a_then, a_else: SMT_EXPR): SMT_EXPR
+			-- if `a_cond' then `a_then' else `a_else'.
+		require
+			same_context: a_cond.context = context and a_then.context = context and a_else.context = context
+		do
+			Result := a_cond.when_true_else (a_then, a_else)
+		end
+
+	maximum (a, b: SMT_EXPR): SMT_EXPR
+			-- The larger of `a' and `b' (via ite).
+		require
+			same_context: a.context = context and b.context = context
+		do
+			Result := ite (a.at_least (b), a, b)
+		end
+
+	absolute (a: SMT_EXPR): SMT_EXPR
+			-- |`a'| (via ite).
+		require
+			same_context: a.context = context
+		do
+			Result := ite (a.at_least (int_value (0)), a, a.opposite)
+		end
+
+	all_distinct (a_terms: ARRAY [SMT_EXPR]): SMT_EXPR
+			-- Conjunction asserting every pair of `a_terms' differs
+			-- (pairwise; equivalent to Z3 distinct for a finite set).
+		require
+			at_least_two: a_terms.count >= 2
+			same_context: across a_terms as ic all ic.context = context end
+		local
+			i, j: INTEGER
+			l_pair: SMT_EXPR
+		do
+			Result := true_expr
+			from i := a_terms.lower until i > a_terms.upper loop
+				from j := i + 1 until j > a_terms.upper loop
+					l_pair := a_terms [i].is_equal_to (a_terms [j]).negated
+					Result := Result.conjoined (l_pair)
+					j := j + 1
+				end
+				i := i + 1
+			end
+		ensure
+			same_context: Result.context = context
+		end
+
 feature -- Assertions & decision
 
 	assume (a_formula: SMT_EXPR)

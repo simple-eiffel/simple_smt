@@ -239,6 +239,36 @@ feature {SMT_EXPR, SMT_SOLVER, SMT_MODEL} -- Z3 externals: expression building
 		alias "return Z3_mk_not ((Z3_context) $a_ctx, (Z3_ast) $a1);"
 		end
 
+	c_mk_mod (a_ctx, a1, a2: POINTER): POINTER
+		external "C inline use %"z3.h%""
+		alias "return Z3_mk_mod ((Z3_context) $a_ctx, (Z3_ast) $a1, (Z3_ast) $a2);"
+		end
+
+	c_mk_div (a_ctx, a1, a2: POINTER): POINTER
+		external "C inline use %"z3.h%""
+		alias "return Z3_mk_div ((Z3_context) $a_ctx, (Z3_ast) $a1, (Z3_ast) $a2);"
+		end
+
+	c_mk_unary_minus (a_ctx, a1: POINTER): POINTER
+		external "C inline use %"z3.h%""
+		alias "return Z3_mk_unary_minus ((Z3_context) $a_ctx, (Z3_ast) $a1);"
+		end
+
+	c_mk_ite (a_ctx, a_cond, a_then, a_else: POINTER): POINTER
+		external "C inline use %"z3.h%""
+		alias "return Z3_mk_ite ((Z3_context) $a_ctx, (Z3_ast) $a_cond, (Z3_ast) $a_then, (Z3_ast) $a_else);"
+		end
+
+	c_mk_xor (a_ctx, a1, a2: POINTER): POINTER
+		external "C inline use %"z3.h%""
+		alias "return Z3_mk_xor ((Z3_context) $a_ctx, (Z3_ast) $a1, (Z3_ast) $a2);"
+		end
+
+	c_mk_iff (a_ctx, a1, a2: POINTER): POINTER
+		external "C inline use %"z3.h%""
+		alias "return Z3_mk_iff ((Z3_context) $a_ctx, (Z3_ast) $a1, (Z3_ast) $a2);"
+		end
+
 	c_mk_implies (a_ctx, a1, a2: POINTER): POINTER
 		external "C inline use %"z3.h%""
 		alias "return Z3_mk_implies ((Z3_context) $a_ctx, (Z3_ast) $a1, (Z3_ast) $a2);"

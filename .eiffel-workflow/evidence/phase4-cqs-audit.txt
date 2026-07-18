@@ -1,0 +1,38 @@
+# Phase 4.5: CQS Audit Results
+# Project: D:/prod/simple_smt
+# Date: 2026-07-18
+
+## Violations Found
+None that are unwhitelisted.
+
+## Whitelisted Exceptions (justified)
+
+### EXCEPTION 1: SMT_SOLVER.decide / is_satisfiable / is_unsatisfiable
+Type: query returning a value AND writing last_check (memoized/error-state pattern).
+Justification: Deterministic (same assertion set -> same outcome); last_check is a
+memoization cache documented in the postcondition (ensure recorded: last_check = Result).
+Directly analogous to the skill's own whitelisted example try_operation: BOOLEAN setting
+last_error. Solving is inherently an action whose result is a value; caching the outcome
+for the model precondition is part of the observable contract.
+(Alternative available: strict split -- `solve` command + pure `is_satisfiable` reading
+last_check -- surfaced to user for decision.)
+
+### EXCEPTION 2: SMT_CONTEXT.int_sort / bool_sort / real_sort
+Type: lazy-initialized cached query (double-checked internal_*_sort).
+Justification: whitelisted lazy-initialization; idempotent, same result each call.
+
+### EXCEPTION 3: Factory/functional builders (int_const, plus, less, entails, ite,
+maximum, all_distinct, ...) 
+Type: return a fresh SMT_EXPR / SMT_SOLVER / SMT_MODEL.
+Justification: return new immutable value objects (Z3 AST nodes are immutable);
+no observable mutation of Current. Functional-combinator / factory pattern.
+
+### EXCEPTION 4: SIMPLE_SMT.prove / model_value; SMT_SOLVER.model
+Type: transient state changes that net to zero (push/assert/pop; inc_ref/dec_ref).
+Justification: self-restoring; documented (ensure assertions_unchanged). No net
+observable state change.
+
+## Summary
+Violations found: 0 (unwhitelisted)
+Whitelisted exceptions: 4 categories, each justified above
+Status: PASS (pending user confirmation of Exception 1's whitelist vs strict-split refactor)

@@ -60,6 +60,28 @@ feature -- Arithmetic
 			create Result.make (context, context.c_mk_mul2 (context.context, ast, a_other.ast))
 		end
 
+	modulo (a_other: SMT_EXPR): SMT_EXPR
+			-- `Current' mod `a_other' (integer modulo; Z3 mod is non-negative).
+		require
+			same_context: a_other.context = context
+		do
+			create Result.make (context, context.c_mk_mod (context.context, ast, a_other.ast))
+		end
+
+	divided_by (a_other: SMT_EXPR): SMT_EXPR
+			-- `Current' div `a_other' (integer division).
+		require
+			same_context: a_other.context = context
+		do
+			create Result.make (context, context.c_mk_div (context.context, ast, a_other.ast))
+		end
+
+	opposite: SMT_EXPR
+			-- Unary minus: -`Current'.
+		do
+			create Result.make (context, context.c_mk_unary_minus (context.context, ast))
+		end
+
 feature -- Comparison (yield boolean expressions)
 
 	less (a_other: SMT_EXPR): SMT_EXPR
@@ -133,6 +155,31 @@ feature -- Boolean connectives
 			-- not `Current'.
 		do
 			create Result.make (context, context.c_mk_not (context.context, ast))
+		end
+
+	xored (a_other: SMT_EXPR): SMT_EXPR
+			-- `Current' xor `a_other'.
+		require
+			same_context: a_other.context = context
+		do
+			create Result.make (context, context.c_mk_xor (context.context, ast, a_other.ast))
+		end
+
+	iff (a_other: SMT_EXPR): SMT_EXPR
+			-- `Current' <-> `a_other' (boolean equivalence).
+		require
+			same_context: a_other.context = context
+		do
+			create Result.make (context, context.c_mk_iff (context.context, ast, a_other.ast))
+		end
+
+	when_true_else (a_then, a_else: SMT_EXPR): SMT_EXPR
+			-- if `Current' then `a_then' else `a_else' (Current must be boolean).
+		require
+			then_same_context: a_then.context = context
+			else_same_context: a_else.context = context
+		do
+			create Result.make (context, context.c_mk_ite (context.context, ast, a_then.ast, a_else.ast))
 		end
 
 feature -- Output
