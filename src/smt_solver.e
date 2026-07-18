@@ -45,7 +45,12 @@ feature -- Access
 			-- Number of formulas asserted at the current push level base.
 
 	last_check: INTEGER
-			-- Outcome of the most recent decision (Sat / Unsat / Undecided).
+			-- Cached outcome of the current assertion set (Sat / Unsat / Undecided).
+			-- Valid only while `is_decided'; kept fresh lazily by `decide'.
+
+	is_decided: BOOLEAN
+			-- Does `last_check' reflect the current assertion set (no assert/
+			-- push/pop/reset since it was computed)?
 
 	has_open_scope: BOOLEAN
 			-- Is there a `push'ed scope that `pop' can restore?
@@ -62,21 +67,29 @@ feature -- Assertion
 		do
 			context.c_solver_assert (context.context, solver, a_formula.ast)
 			assertion_count := assertion_count + 1
+			is_decided := False
 		ensure
 			counted: assertion_count = old assertion_count + 1
+			invalidated: not is_decided
 		end
 
 feature -- Decision
 
 	decide: INTEGER
-			-- Decide satisfiability of the current assertion set (`check' is an
-			-- Eiffel keyword, so the query is named `decide').
+			-- Satisfiability of the current assertion set. Lazy query: runs Z3
+			-- only when the cached `last_check' is stale (`is_decided' false),
+			-- then memoizes; repeated calls on an unchanged assertion set do not
+			-- re-run the solver. (`check' is an Eiffel keyword, hence `decide'.)
 		do
-			Result := context.c_solver_check (context.context, solver)
-			last_check := Result
+			if not is_decided then
+				last_check := context.c_solver_check (context.context, solver)
+				is_decided := True
+			end
+			Result := last_check
 		ensure
 			valid: Result = Sat or Result = Unsat or Result = Undecided
 			recorded: last_check = Result
+			decided: is_decided
 		end
 
 	is_satisfiable: BOOLEAN
@@ -92,9 +105,9 @@ feature -- Decision
 		end
 
 	model: detachable SMT_MODEL
-			-- Satisfying model after a Sat check; Void otherwise.
+			-- Satisfying model after a Sat decision; Void otherwise.
 		require
-			was_sat: last_check = Sat
+			was_sat: is_decided and last_check = Sat
 		local
 			l_ptr: POINTER
 		do
@@ -111,6 +124,7 @@ feature -- Scoping
 		do
 			context.c_solver_push (context.context, solver)
 			saved_counts.extend (assertion_count)
+			is_decided := False
 		end
 
 	pop
@@ -122,6 +136,9 @@ feature -- Scoping
 			assertion_count := saved_counts.last
 			saved_counts.finish
 			saved_counts.remove
+			is_decided := False
+		ensure
+			invalidated: not is_decided
 		end
 
 	reset
@@ -131,8 +148,10 @@ feature -- Scoping
 			assertion_count := 0
 			saved_counts.wipe_out
 			last_check := Undecided
+			is_decided := False
 		ensure
 			empty: assertion_count = 0
+			invalidated: not is_decided
 		end
 
 feature -- Output

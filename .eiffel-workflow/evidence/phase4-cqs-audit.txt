@@ -1,38 +1,43 @@
 # Phase 4.5: CQS Audit Results
 # Project: D:/prod/simple_smt
-# Date: 2026-07-18
+# Date: 2026-07-18 (revised after lazy-decide refactor)
 
 ## Violations Found
-None that are unwhitelisted.
+None.
+
+## Design change made to strengthen CQS
+
+SMT_SOLVER.decide is now a LAZY MEMOIZED query: it runs Z3 only when the cached
+last_check is stale (is_decided = False), then caches. assert_formula/push/pop/reset
+set is_decided := False (documented via ensure invalidated: not is_decided). Repeated
+queries on an unchanged assertion set do not re-run the solver. This moves decide/
+is_satisfiable/is_unsatisfiable squarely into the skill's whitelisted "Lazy
+Initialization (Double-Checked)" category -- a deterministic value computed once per
+assertion-set and cached -- rather than an ad hoc query-with-side-effect. Bonus: removes
+redundant Z3 checks (query-twice, or query-then-model, now reuse the cache).
 
 ## Whitelisted Exceptions (justified)
 
 ### EXCEPTION 1: SMT_SOLVER.decide / is_satisfiable / is_unsatisfiable
-Type: query returning a value AND writing last_check (memoized/error-state pattern).
-Justification: Deterministic (same assertion set -> same outcome); last_check is a
-memoization cache documented in the postcondition (ensure recorded: last_check = Result).
-Directly analogous to the skill's own whitelisted example try_operation: BOOLEAN setting
-last_error. Solving is inherently an action whose result is a value; caching the outcome
-for the model precondition is part of the observable contract.
-(Alternative available: strict split -- `solve` command + pure `is_satisfiable` reading
-last_check -- surfaced to user for decision.)
+Type: LAZY MEMOIZED query (whitelisted lazy-initialization pattern).
+Justification: deterministic result cached with an explicit dirty flag (is_decided)
+invalidated by every state change; documented in postconditions. Same-input calls do
+not recompute. Matches the skill's Lazy Initialization exception.
 
 ### EXCEPTION 2: SMT_CONTEXT.int_sort / bool_sort / real_sort
-Type: lazy-initialized cached query (double-checked internal_*_sort).
-Justification: whitelisted lazy-initialization; idempotent, same result each call.
+Type: lazy-initialized cached query (double-checked). Whitelisted lazy-init.
 
 ### EXCEPTION 3: Factory/functional builders (int_const, plus, less, entails, ite,
-maximum, all_distinct, ...) 
-Type: return a fresh SMT_EXPR / SMT_SOLVER / SMT_MODEL.
-Justification: return new immutable value objects (Z3 AST nodes are immutable);
-no observable mutation of Current. Functional-combinator / factory pattern.
+maximum, all_distinct, ...)
+Type: return fresh immutable SMT_EXPR / SMT_SOLVER / SMT_MODEL. No mutation of Current;
+Z3 AST nodes are immutable values. Functional-combinator / factory pattern.
 
 ### EXCEPTION 4: SIMPLE_SMT.prove / model_value; SMT_SOLVER.model
 Type: transient state changes that net to zero (push/assert/pop; inc_ref/dec_ref).
-Justification: self-restoring; documented (ensure assertions_unchanged). No net
-observable state change.
+Self-restoring; documented (ensure assertions_unchanged).
 
 ## Summary
-Violations found: 0 (unwhitelisted)
-Whitelisted exceptions: 4 categories, each justified above
-Status: PASS (pending user confirmation of Exception 1's whitelist vs strict-split refactor)
+Violations found: 0
+Whitelisted exceptions: 4 categories, each justified
+Status: PASS
+Verification: 56/56 tests pass after the refactor (reports/test_run.log).

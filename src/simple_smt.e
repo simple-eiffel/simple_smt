@@ -167,9 +167,9 @@ feature -- Assertions & decision
 		end
 
 	is_unknown: BOOLEAN
-			-- Did the last decision return unknown?
+			-- Does the current assertion set decide to unknown?
 		do
-			Result := solver.last_check = solver.Undecided
+			Result := solver.decide = solver.Undecided
 		end
 
 	model_value (a_expr: SMT_EXPR): STRING
@@ -178,7 +178,7 @@ feature -- Assertions & decision
 			same_context: a_expr.context = context
 		do
 			create Result.make_empty
-			if solver.last_check = solver.Sat and then attached solver.model as al_m then
+			if solver.is_satisfiable and then attached solver.model as al_m then
 				Result := al_m.value_of (a_expr)
 				al_m.dispose_model
 			end
