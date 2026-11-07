@@ -11,8 +11,31 @@
 			<concurrency support="scoop"/>
 			<void_safety support="all"/>
 		</capability>
-		<external_include location="$(SIMPLE_EIFFEL)\simple_smt\Clib"/>
-		<external_object location="$(SIMPLE_EIFFEL)\simple_smt\lib\libz3.lib"/>
+		<external_cflag value="-I/opt/homebrew/opt/z3/include">
+			<condition>
+				<platform value="macintosh"/>
+			</condition>
+		</external_cflag>
+		<external_linker_flag value="-L/opt/homebrew/opt/z3/lib -lz3">
+			<condition>
+				<platform value="macintosh"/>
+			</condition>
+		</external_linker_flag>
+		<external_linker_flag value="-lz3">
+			<condition>
+				<platform value="unix"/>
+			</condition>
+		</external_linker_flag>
+		<external_include location="$(SIMPLE_EIFFEL)/simple_smt/Clib">
+			<condition>
+				<platform value="windows"/>
+			</condition>
+		</external_include>
+		<external_object location="$(SIMPLE_EIFFEL)/simple_smt/lib/libz3.lib">
+			<condition>
+				<platform value="windows"/>
+			</condition>
+		</external_object>
 		<library name="base" location="$ISE_LIBRARY\library\base\base.ecf">
 			<class_option class="ARRAYED_LIST">
 				<warning name="obsolete_feature" value="all"/>
